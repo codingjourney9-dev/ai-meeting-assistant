@@ -82,7 +82,7 @@ export default function VideoRoom() {
     try {
       
       try {
-        const res = await fetch('http://localhost:5000/socket.io/?EIO=4&transport=polling')
+        const res = await fetch('/socket.io/?EIO=4&transport=polling')
         console.log('[video] Socket.IO handshake status:', res.status)
       } catch (pingErr) {
         console.error('[video] Socket.IO endpoint unreachable:', pingErr.message)
