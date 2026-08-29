@@ -1,8 +1,9 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { env } from '../config/env.js';
 
+const resend = env.RESEND_API_KEY ? new Resend(env.RESEND_API_KEY) : null;
+
 function getRecipientsFromMeetingOrEnv(meeting) {
-  
   if (meeting?.recipients && Array.isArray(meeting.recipients) && meeting.recipients.length) {
     return meeting.recipients;
   }
@@ -13,32 +14,14 @@ function getRecipientsFromMeetingOrEnv(meeting) {
   return [];
 }
 
-function createTransportIfConfigured() {
-  if (!env.SMTP_HOST || !env.SMTP_USER || !env.SMTP_PASS) return null;
-
-  return nodemailer.createTransport({
-    host: env.SMTP_HOST,
-    port: env.SMTP_PORT || 587,
-    secure: env.SMTP_SECURE, 
-    auth: {
-      user: env.SMTP_USER,
-      pass: env.SMTP_PASS,
-    },
-  });
-}
-
 export async function sendActionItemsEmail(meeting) {
   const recipients = getRecipientsFromMeetingOrEnv(meeting);
 
-  
   if (!recipients.length) {
     console.warn('[email] No recipients configured for action items; skipping email.');
     return { sent: false, reason: 'no-recipients' };
   }
 
-  const transporter = createTransportIfConfigured();
-
-  
   const subject = `Action items: ${meeting.title || 'Meeting'} (${meeting._id})`;
   let text = `Action items generated for meeting: ${meeting.title || meeting._id}\n\n`;
 
@@ -64,24 +47,30 @@ export async function sendActionItemsEmail(meeting) {
     text += '\n';
   }
 
-  
-  if (!transporter) {
-    console.log('[email] SMTP not configured — would send to:', recipients);
+  if (!resend) {
+    console.log('[email] Resend API key not configured — would send to:', recipients);
     console.log('[email] Subject:', subject);
     console.log('[email] Body:\n', text);
-    return { sent: false, reason: 'smtp-not-configured' };
+    return { sent: false, reason: 'resend-not-configured' };
   }
 
   try {
-    const info = await transporter.sendMail({
-      from: env.MAIL_FROM,
-      to: recipients.join(','),
+    const fromEmail = env.MAIL_FROM && env.MAIL_FROM.includes('@') ? env.MAIL_FROM : 'onboarding@resend.dev';
+    
+    const { data, error } = await resend.emails.send({
+      from: `Meeting Assistant <${fromEmail}>`,
+      to: recipients,
       subject,
       text,
     });
+    
+    if (error) {
+      console.error('[email] Failed to send action items email:', error.message);
+      return { sent: false, reason: error.message };
+    }
 
-    console.log('[email] Action items emailed:', info.messageId);
-    return { sent: true, info };
+    console.log('[email] Action items emailed:', data.id);
+    return { sent: true, data };
   } catch (err) {
     console.error('[email] Failed to send action items email:', err?.message || err);
     return { sent: false, reason: err?.message || 'send-failed' };

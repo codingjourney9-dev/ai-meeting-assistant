@@ -1,17 +1,8 @@
-import nodemailer from 'nodemailer'
 import { Meeting } from '../models/Meeting.js'
 import { env } from '../config/env.js'
+import { Resend } from 'resend'
 
-
-const transporter = nodemailer.createTransport({
-  host: env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(env.SMTP_PORT || '587'),
-  secure: env.SMTP_SECURE,
-  auth: {
-    user: env.SMTP_USER,
-    pass: env.SMTP_PASS,
-  },
-})
+const resend = new Resend(env.RESEND_API_KEY)
 
 export async function addTask(req, res) {
   try {
@@ -60,7 +51,6 @@ export async function dispatchEmails(req, res) {
 
     console.log(`[email] Dispatching tasks for meeting: ${meeting.title}`)
 
-    
     const tasksByAssignee = {}
     meeting.tasks.forEach(task => {
       const email = task.assignee || env.ACTION_ITEM_RECIPIENTS?.split(',')[0] || 'unassigned'
@@ -70,7 +60,6 @@ export async function dispatchEmails(req, res) {
 
     const results = []
 
-    
     for (const [email, tasks] of Object.entries(tasksByAssignee)) {
       if (email === 'unassigned' || !email.includes('@')) {
         console.warn(`[email] Skipping invalid or unassigned email: ${email}`)
@@ -99,18 +88,25 @@ export async function dispatchEmails(req, res) {
         </div>
       `
 
-      const mailOptions = {
-        from: `"${req.user.name} (via Meeting Assistant)" <${env.SMTP_USER}>`,
-        replyTo: `"${req.user.name}" <${req.user.email}>`,
-        to: email,
-        subject: `Action Items: ${meeting.title}`,
-        html,
-      }
+      // Note: Free Resend accounts can only send emails from 'onboarding@resend.dev' unless a custom domain is verified.
+      const fromEmail = env.MAIL_FROM && env.MAIL_FROM.includes('@') ? env.MAIL_FROM : 'onboarding@resend.dev'
 
       try {
-        const info = await transporter.sendMail(mailOptions)
-        console.log(`[email] Sent to ${email}: ${info.messageId}`)
-        results.push({ email, success: true })
+        const { data, error } = await resend.emails.send({
+          from: `${req.user.name} (via Meeting Assistant) <${fromEmail}>`,
+          replyTo: `${req.user.name} <${req.user.email}>`,
+          to: [email],
+          subject: `Action Items: ${meeting.title}`,
+          html,
+        })
+        
+        if (error) {
+          console.error(`[email] Failed to send to ${email}:`, error.message)
+          results.push({ email, success: false, error: error.message })
+        } else {
+          console.log(`[email] Sent to ${email}: ${data.id}`)
+          results.push({ email, success: true })
+        }
       } catch (err) {
         console.error(`[email] Failed to send to ${email}:`, err.message)
         results.push({ email, success: false, error: err.message })
