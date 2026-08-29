@@ -19,7 +19,7 @@ function createTransportIfConfigured() {
   return nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT || 587,
-    secure: !!env.SMTP_SECURE, 
+    secure: env.SMTP_SECURE, 
     auth: {
       user: env.SMTP_USER,
       pass: env.SMTP_PASS,
