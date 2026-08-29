@@ -17,7 +17,7 @@ export async function generateMeetingSummary(transcriptText) {
 
   const prompt = `You are a meeting summarization assistant. Analyze this meeting transcript and extract:
 
-1. A 2-4 sentence overview of what was discussed
+1. A 2-4 sentence overview of what was discussed (or just a brief description if very short)
 2. Key points (main topics covered)
 3. Action items (tasks that need to be done, with who is responsible if mentioned)
 4. Decisions (things that were explicitly agreed upon)
@@ -30,7 +30,7 @@ IMPORTANT: You MUST respond with ONLY valid JSON in this exact format:
   "decisions": ["decision 1", "decision 2"]
 }
 
-If a section has no content, use an empty array []. Do not add any text before or after the JSON.
+CRITICAL INSTRUCTION: If the transcript is extremely short or trivial (e.g., just greetings, mic checks, or very few words), DO NOT leave the overview or keyPoints empty. You MUST generate at least one descriptive bullet point for keyPoints (e.g., "Brief greetings were exchanged" or "Audio/video check was performed"). Only use an empty array [] for actionItems and decisions if absolutely nothing actionable was said. Do not add any text before or after the JSON.
 
 MEETING TRANSCRIPT:
 ${transcriptText}`
