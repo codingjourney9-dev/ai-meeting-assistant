@@ -88,12 +88,12 @@ export async function dispatchEmails(req, res) {
         </div>
       `
 
-      // Note: Free Resend accounts can only send emails from 'onboarding@resend.dev' unless a custom domain is verified.
-      const fromEmail = env.MAIL_FROM && env.MAIL_FROM.includes('@') ? env.MAIL_FROM : 'onboarding@resend.dev'
+      // Note: Free Resend accounts MUST send from onboarding@resend.dev
+      const fromEmail = 'onboarding@resend.dev'
 
       try {
         const { data, error } = await resend.emails.send({
-          from: `${req.user.name} (via Meeting Assistant) <${fromEmail}>`,
+          from: `Meeting Assistant <${fromEmail}>`,
           replyTo: `${req.user.name} <${req.user.email}>`,
           to: [email],
           subject: `Action Items: ${meeting.title}`,

@@ -55,7 +55,7 @@ export async function sendActionItemsEmail(meeting) {
   }
 
   try {
-    const fromEmail = env.MAIL_FROM && env.MAIL_FROM.includes('@') ? env.MAIL_FROM : 'onboarding@resend.dev';
+    const fromEmail = 'onboarding@resend.dev';
     
     const { data, error } = await resend.emails.send({
       from: `Meeting Assistant <${fromEmail}>`,
